@@ -1,0 +1,86 @@
+# Fork-only workflow (danielelisi/agora-gitops#45, ADR 0003): build the image that agora runs as `eco`.
+#
+# Tag `upstream-<short sha of the upstream commit>` on this fork's main after syncing it with upstream:
+#   git tag upstream-c78b2d2 && git push origin upstream-c78b2d2
+# The image is pushed as ghcr.io/danielelisi/openreply:<tag>; agora pins it by digest.
+#
+# Before pushing, the image is smoke-tested the way the cluster runs it: uid 1000, read-only root
+# filesystem, writable /tmp and /app/.next/cache only.
+name: Build & publish (GHCR)
+
+on:
+  push:
+    tags: ["upstream-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/danielelisi/openreply
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Image tag
+        id: tag
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then t="$GITHUB_REF_NAME"; else t="manual-${GITHUB_SHA::7}"; fi
+          echo "tag=$t" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test as non-root with a read-only root filesystem
+        env:
+          REF: ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+        run: |
+          common="--user 1000:1000 --read-only --tmpfs /tmp --tmpfs /app/.next/cache -e HOME=/tmp"
+          docker run --rm $common "$REF" node_modules/.bin/prisma --version
+          docker run --rm $common "$REF" node_modules/.bin/tsx --version
+          docker run -d --name web -p 3000:3000 $common \
+            -e NEXTAUTH_URL=http://localhost:3000 \
+            -e NEXTAUTH_SECRET=smoke-test-secret-0123456789 \
+            -e DATABASE_URL=postgresql://smoke@127.0.0.1:5432/smoke \
+            -e REDIS_URL=redis://127.0.0.1:6379 \
+            -e ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 \
+            "$REF" node_modules/.bin/next start -p 3000
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/privacy || true)
+            [ "$code" = 200 ] && break
+            sleep 2
+          done
+          docker logs web
+          [ "$code" = 200 ] || { echo "/privacy returned $code"; exit 1; }
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push
+        id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+          cache-from: type=gha
+
+      - name: Summary
+        run: echo "Pushed \`${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}@${{ steps.push.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
