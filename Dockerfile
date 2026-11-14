@@ -21,6 +21,15 @@
 FROM node:20-slim AS build
 WORKDIR /app
 
+# Prisma picks its schema-engine binary from the OpenSSL it detects at install
+# time. node:20-slim ships no openssl, so the build stage would fetch the
+# openssl-1.1.x engine while the runner stage has OpenSSL 3. The CLI then tries
+# to download the 3.0.x engine into node_modules at runtime, which needs network
+# access and fails for a non-root user or a read-only filesystem.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssl \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
