@@ -19,6 +19,14 @@ export function proxy(request: NextRequest) {
   const isLogin = pathname === "/login";
   const isAuthenticated = hasSessionCookie(request);
 
+  // Fork patch (eco.dlisi.xyz): no public landing page. The home page goes
+  // straight to sign-in, or to the dashboard when already signed in.
+  if (pathname === "/") {
+    return NextResponse.redirect(
+      new URL(isAuthenticated ? "/dashboard" : "/login", request.url)
+    );
+  }
+
   if (isProtected && !isAuthenticated) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
@@ -34,6 +42,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/dashboard/:path*",
     "/automations/:path*",
     "/logs/:path*",
