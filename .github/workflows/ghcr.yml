@@ -1,8 +1,9 @@
 # Fork-only workflow (danielelisi/agora-gitops#45, ADR 0003): build the image that agora runs as `eco`.
 #
-# Tag `upstream-<short sha of the upstream commit>` on this fork's main after syncing it with upstream:
-#   git tag upstream-c78b2d2 && git push origin upstream-c78b2d2
-# The image is pushed as ghcr.io/danielelisi/openreply:<tag>; agora pins it by digest.
+# Every push to main (a merged PR or "Sync fork") builds and publishes the image, then tags the commit
+# `upstream-<upstream merge-base, 7>-<fork commit, 7>`, e.g. upstream-c78b2d2-7bc15f7. Pushing such a tag by
+# hand rebuilds that commit. The image is pushed as ghcr.io/danielelisi/openreply:<tag>; agora pins it by
+# digest. Tags created here with GITHUB_TOKEN do not trigger another run.
 #
 # Before pushing, the image is smoke-tested the way the cluster runs it: uid 1000, read-only root
 # filesystem, writable /tmp and /app/.next/cache only.
@@ -10,12 +11,17 @@ name: Build & publish (GHCR)
 
 on:
   push:
+    branches: [main]
     tags: ["upstream-*"]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # push the git tag
   packages: write
+
+concurrency:
+  group: ghcr-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   IMAGE: ghcr.io/danielelisi/openreply
@@ -25,13 +31,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # merge-base with upstream
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Image tag
         id: tag
         run: |
-          if [ "$GITHUB_REF_TYPE" = tag ]; then t="$GITHUB_REF_NAME"; else t="manual-${GITHUB_SHA::7}"; fi
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            t="$GITHUB_REF_NAME"
+          else
+            git fetch --quiet https://github.com/diwenne/openreply.git main
+            base=$(git merge-base HEAD FETCH_HEAD)
+            t="upstream-${base::7}-${GITHUB_SHA::7}"
+          fi
           echo "tag=$t" >> "$GITHUB_OUTPUT"
 
       - name: Build
@@ -84,3 +98,15 @@ jobs:
 
       - name: Summary
         run: echo "Pushed \`${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}@${{ steps.push.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Git tag
+        if: github.ref_type != 'tag'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "tag $TAG exists"; exit 0
+          fi
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
+          echo "Tagged \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
