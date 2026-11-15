@@ -121,3 +121,50 @@ jobs:
           git tag "$TAG" "$GITHUB_SHA"
           git push origin "refs/tags/$TAG"
           echo "Tagged \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+
+      # Deploy: pin the new digest for eco on agora `main` (agora-gitops ADR 0004 addendum). Argo CD syncs it
+      # within about 3 minutes. Only builds from main deploy; a hand-pushed upstream-* tag only publishes.
+      # Needs the agora-bot GitHub App (installed on agora-gitops): repo variable AGORA_BOT_CLIENT_ID and
+      # secret AGORA_BOT_PRIVATE_KEY on this fork.
+      - name: Mint agora-bot token
+        if: github.ref == 'refs/heads/main'
+        id: agora-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.AGORA_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.AGORA_BOT_PRIVATE_KEY }}
+          owner: danielelisi
+          repositories: agora-gitops
+          permission-contents: write
+
+      - name: Check out agora-gitops
+        if: github.ref == 'refs/heads/main'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: danielelisi/agora-gitops
+          token: ${{ steps.agora-token.outputs.token }}
+          path: agora
+
+      - name: Deploy to eco
+        if: github.ref == 'refs/heads/main'
+        working-directory: agora
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          file=apps/eco/app.yaml
+          git config user.name 'agora-bot-danielelisi[bot]'
+          git config user.email '356774202+agora-bot-danielelisi[bot]@users.noreply.github.com'
+          for attempt in 1 2 3; do
+            git pull --quiet --rebase origin main
+            sed -i -E "s#(ghcr\.io/danielelisi/openreply:main)@sha256:[a-f0-9]{64}#\1@${DIGEST}#g" "$file"
+            [ "$(grep -c "openreply:main@${DIGEST}" "$file")" -ge 1 ] || { echo "no openreply:main image in $file"; exit 1; }
+            if git diff --quiet; then echo "eco already runs $DIGEST"; exit 0; fi
+            git commit --quiet -am "eco: deploy openreply $TAG" -m "Fork commit danielelisi/openreply@${GITHUB_SHA}, image ${DIGEST}."
+            if git push --quiet origin HEAD:main; then
+              echo "Deployed \`${DIGEST}\` to eco ($(git rev-parse --short HEAD) on agora main)" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            git reset --quiet --hard origin/main
+          done
+          echo "push to agora main failed 3 times"; exit 1
