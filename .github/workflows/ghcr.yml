@@ -2,7 +2,8 @@
 #
 # Every push to main (a merged PR or "Sync fork") builds and publishes the image, then tags the commit
 # `upstream-<upstream merge-base, 7>-<fork commit, 7>`, e.g. upstream-c78b2d2-7bc15f7. Pushing such a tag by
-# hand rebuilds that commit. The image is pushed as ghcr.io/danielelisi/openreply:<tag>; agora pins it by
+# hand rebuilds that commit. Builds from main also move the `main` tag, which agora pins by digest
+# (Renovate opens the digest PR). The image is pushed as ghcr.io/danielelisi/openreply:<tag>; agora pins it by
 # digest. Tags created here with GITHUB_TOKEN do not trigger another run.
 #
 # Before pushing, the image is smoke-tested the way the cluster runs it: uid 1000, read-only root
@@ -65,6 +66,7 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
@@ -97,7 +99,12 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+          # Builds from main also move `:main`, which agora pins by digest so Renovate turns each
+          # fork build into a digest PR (danielelisi/agora-gitops#63).
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
+            ${{ github.ref == 'refs/heads/main' && format('{0}:main', env.IMAGE) || '' }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
 
       - name: Summary
