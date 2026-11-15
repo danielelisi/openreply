@@ -969,7 +969,10 @@ export async function subscribeInstagramAccountToWebhooks(
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        subscribed_fields: ["comments", "messages"],
+        // Fork patch: button taps arrive as `messaging_postbacks`, which `messages`
+        // does not cover. Without it the follow-up DM (the link) never sends and
+        // nothing is logged as failed.
+        subscribed_fields: ["comments", "messages", "messaging_postbacks"],
       }),
     }
   );
