@@ -7,6 +7,10 @@
 #
 # Before pushing, the image is smoke-tested the way the cluster runs it: uid 1000, read-only root
 # filesystem, writable /tmp and /app/.next/cache only.
+#
+# Layer cache: ghcr.io/danielelisi/openreply:buildcache (registry cache, mode=max). The gha cache was scoped
+# per ref, so every upstream-* tag started cold and re-uploaded ~1 GB (about 3 of the 4 to 6 minutes).
+# The registry cache is shared by main and all tags and only uploads layers that changed.
 name: Build & publish (GHCR)
 
 on:
@@ -48,6 +52,12 @@ jobs:
           fi
           echo "tag=$t" >> "$GITHUB_OUTPUT"
 
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -55,8 +65,8 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
       - name: Smoke test as non-root with a read-only root filesystem
         env:
@@ -80,12 +90,6 @@ jobs:
           docker logs web
           [ "$code" = 200 ] || { echo "/privacy returned $code"; exit 1; }
 
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Push
         id: push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -94,7 +98,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}
-          cache-from: type=gha
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache
 
       - name: Summary
         run: echo "Pushed \`${{ env.IMAGE }}:${{ steps.tag.outputs.tag }}@${{ steps.push.outputs.digest }}\`" >> "$GITHUB_STEP_SUMMARY"
