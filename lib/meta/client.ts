@@ -589,9 +589,9 @@ export interface InstagramConversation {
 }
 
 // Unified login tokens go through graph.facebook.com, where a 50-conversation
-// page with the last message expanded can take Meta well over 10s to answer.
+// page with the last message expanded can take Meta well over 30s to answer.
 // Fork patch (danielelisi/agora-gitops#47): keep it on upstream syncs.
-const CONVERSATIONS_TIMEOUT_MS = 30_000;
+const CONVERSATIONS_TIMEOUT_MS = 60_000;
 
 /**
  * Load up to 50 recent conversations. A single broken field expansion can make
