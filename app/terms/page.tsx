@@ -1,54 +1,67 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import LegalShell from "@/components/legal-shell";
 
+// Operator-specific text for eco.dlisi.xyz (danielelisi/agora-gitops#47). Fork patch: keep it on upstream syncs.
 export const metadata: Metadata = {
-  title: "Terms of Service - OpenReply",
-  description:
-    "Terms for using OpenReply's Instagram comment-to-DM campaign software.",
+  title: "Terms of Service - eco.dlisi.xyz",
+  description: "Terms for the automatic Instagram replies sent by eco.dlisi.xyz.",
 };
 
 export default function TermsPage() {
   return (
     <LegalShell
       title="Terms of Service"
-      description="These terms define acceptable use for OpenReply's hosted Instagram comment-to-DM campaign service."
-      updatedAt="May 24, 2026"
+      description="eco.dlisi.xyz is a privately operated, self-hosted copy of the open-source OpenReply software, run by Daniele Lisi for the Instagram professional accounts he manages. It is not offered to the public."
+      updatedAt="November 14, 2026"
     >
       <section>
-        <h2 className="text-xl font-bold text-white">Authorized Use</h2>
+        <h2 className="text-xl font-bold text-white">What The Service Does</h2>
         <p className="mt-3">
-          You may use OpenReply only with Instagram professional accounts you
-          own or are authorized to manage. You are responsible for the campaigns,
-          keywords, links, and messages you configure.
+          When you comment a keyword on a post or reel, message the account, or
+          reply to a story, the service may send you a private reply, usually
+          with a link, and may reply publicly to your comment. Commenting the
+          keyword is how you ask for that reply.
         </p>
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-white">Platform Compliance</h2>
+        <h2 className="text-xl font-bold text-white">Use Of Instagram</h2>
         <p className="mt-3">
-          You agree to follow Meta Platform Terms, Instagram policies, applicable
-          messaging rules, privacy laws, advertising rules, and anti-spam laws.
-          OpenReply may rate-limit, pause, or disable campaigns that create
-          compliance, abuse, security, or deliverability risk.
+          Replies are sent only through Meta&apos;s official Instagram API and
+          follow Meta&apos;s Platform Terms, Instagram&apos;s policies and their
+          messaging limits. Your use of Instagram remains governed by
+          Instagram&apos;s own terms.
         </p>
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-white">Availability</h2>
+        <h2 className="text-xl font-bold text-white">Links And Availability</h2>
         <p className="mt-3">
-          OpenReply depends on third-party platforms including Meta, email,
-          hosting, database, and queue providers. We work to operate the
-          service reliably, but uninterrupted availability is not guaranteed.
+          Links in replies are provided as they are. The service depends on
+          Meta and other providers, may be paused or stopped at any time, and
+          comes with no guarantee that every reply is delivered.
         </p>
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-white">Open-Source Core</h2>
+        <h2 className="text-xl font-bold text-white">Privacy</h2>
         <p className="mt-3">
-          The public repository is MIT licensed. Hosted SaaS infrastructure,
-          managed support, agency workflows, analytics, reports, and other paid
-          service features may be provided separately from the open-source core.
+          How your data is handled is described in the{" "}
+          <Link href="/privacy" className="underline">
+            Privacy Policy
+          </Link>
+          , and how to have it deleted on the{" "}
+          <Link href="/data-deletion" className="underline">
+            Data Deletion
+          </Link>{" "}
+          page.
         </p>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-bold text-white">Contact</h2>
+        <p className="mt-3">Questions about these terms: info@dlisi.xyz.</p>
       </section>
     </LegalShell>
   );

@@ -1,45 +1,51 @@
 import type { Metadata } from "next";
 import LegalShell from "@/components/legal-shell";
 
+// Operator-specific text for eco.dlisi.xyz (danielelisi/agora-gitops#47). Fork patch: keep it on upstream syncs.
 export const metadata: Metadata = {
-  title: "Data Deletion - OpenReply",
-  description:
-    "How OpenReply customers can disconnect Instagram and request account or campaign data deletion.",
+  title: "Data Deletion - eco.dlisi.xyz",
+  description: "How to have your data deleted from eco.dlisi.xyz.",
 };
 
 export default function DataDeletionPage() {
   return (
     <LegalShell
       title="Data Deletion"
-      description="Use this page for Meta App Review and customer requests about removing OpenReply account, workspace, Instagram, and campaign data."
-      updatedAt="May 24, 2026"
+      description="How to have the data eco.dlisi.xyz holds about you deleted. The service is operated by Daniele Lisi."
+      updatedAt="November 14, 2026"
     >
       <section>
-        <h2 className="text-xl font-bold text-white">Disconnect Instagram</h2>
+        <h2 className="text-xl font-bold text-white">How To Request Deletion</h2>
         <p className="mt-3">
-          Sign in, open Settings, and select Disconnect. This removes the stored
-          Instagram connection token and stops campaigns from sending private
-          replies for that workspace.
+          Email info@dlisi.xyz with the subject &quot;Data deletion&quot; and
+          your Instagram username. No account or password is needed.
         </p>
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-white">Delete Workspace Data</h2>
+        <h2 className="text-xl font-bold text-white">What Gets Deleted</h2>
         <p className="mt-3">
-          To delete workspace, campaign, log, webhook, billing reference, and
-          operational diagnostic data, contact support from the email address
-          used to sign in. Include the workspace name and the Instagram username
-          connected to the workspace.
+          Every record linked to that Instagram account: your comments and
+          messages as received from Meta, the logs of replies sent to you, and
+          the link clicks recorded from those replies.
         </p>
       </section>
 
       <section>
-        <h2 className="text-xl font-bold text-white">Verification</h2>
+        <h2 className="text-xl font-bold text-white">When</h2>
         <p className="mt-3">
-          We may ask you to verify control of the email address or connected
-          business account before deleting data. Deletion requests are processed
-          as quickly as practical unless retention is required for legal,
-          billing, fraud prevention, or security reasons.
+          Within 30 days of your request, and you will get an email when it is
+          done. Copies in database backups expire on their own within a further
+          14 days. If we need to confirm that the Instagram account is yours,
+          we will ask you to message it from that account.
+        </p>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-bold text-white">Stop Future Replies</h2>
+        <p className="mt-3">
+          Simply do not comment campaign keywords or message the account. You
+          can also block the account on Instagram.
         </p>
       </section>
     </LegalShell>
