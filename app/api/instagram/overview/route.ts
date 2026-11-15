@@ -148,6 +148,7 @@ export async function GET(request: NextRequest) {
     // before that scope.
     let insightsAvailable = false;
     let permissionDenied = false;
+    let insightErrorLogged = false;
 
     const insights = await mapWithConcurrency(
       media,
@@ -166,6 +167,16 @@ export async function GET(request: NextRequest) {
           return data;
         } catch (err) {
           if (err instanceof PermissionError) permissionDenied = true;
+          // Fork patch: log the first failure per request. Meta's code 100 (bad metric,
+          // missing asset) is reported as a permission problem, which is misleading
+          // without the message. The message carries no token.
+          if (!insightErrorLogged) {
+            insightErrorLogged = true;
+            console.warn("[Overview] media insights failed", {
+              mediaType: m.media_type ?? null,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
           return null;
         }
       }
