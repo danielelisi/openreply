@@ -588,6 +588,11 @@ export interface InstagramConversation {
   messages?: { data: InstagramMessage[] };
 }
 
+// Unified login tokens go through graph.facebook.com, where a 50-conversation
+// page with the last message expanded can take Meta well over 10s to answer.
+// Fork patch (danielelisi/agora-gitops#47): keep it on upstream syncs.
+const CONVERSATIONS_TIMEOUT_MS = 30_000;
+
 /**
  * Load up to 50 recent conversations. A single broken field expansion can make
  * Meta reject the entire page with code 1 (upstream issue #60). Halve only those
@@ -625,7 +630,7 @@ export async function getConversations(
     return handleResponse<Page>(
       await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${accessToken}` },
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(CONVERSATIONS_TIMEOUT_MS),
       })
     );
   }
